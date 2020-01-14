@@ -12,8 +12,7 @@ export default function(_: BuildConfig): Metadata {
         description: U.description,
         author: U.author,
         match: [
-            `*://${U.hostname}/*`,
-            `*://www.${U.hostname}/*`,
+            `*://${U.hostname}:${U.port}/*`,
         ],
         namespace: U.namespace,
         run_at: U.runAt,
