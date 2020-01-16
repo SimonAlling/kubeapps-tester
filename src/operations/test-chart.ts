@@ -59,6 +59,11 @@ export default function(e: {
                     } else {
                         log.error("Could not find delete button.");
                     }
+                } else {
+                    const errorText = document.querySelector(".alert-error .error__text");
+                    if (errorText instanceof HTMLElement) {
+                        log.error(errorText.textContent || "An error seems to have occurred, but could not find the message.");
+                    }
                 }
                 break;
             case State.deleting:
