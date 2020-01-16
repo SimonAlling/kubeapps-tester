@@ -13,15 +13,12 @@ export default function(e: {
     button.value = "Batch test";
     button.classList.add(CONFIG.CLASS.batchTestButton);
     button.addEventListener("click", () => {
-        const input = prompt("Number of releases to test (blank for all):");
+        const input = prompt("Maximum number of releases to test:");
         if (input === null) return;
-        let n = Infinity;
-        const parsed = Number.parseInt(input);
-        if (input !== "" && Number.isNaN(parsed)) {
-            alert("Please enter a number or leave the input field blank.");
+        const n = Number.parseInt(input);
+        if (Number.isNaN(n)) {
+            alert("Please enter a number.");
             return;
-        } else {
-            n = parsed;
         }
         const cards = Array.from(document.querySelectorAll(SELECTOR.chartCard)).slice(0, n) as HTMLElement[];
         if (cards.length > 0) {
