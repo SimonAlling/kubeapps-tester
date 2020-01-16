@@ -67,6 +67,7 @@ export default function(e: {
                 }
                 break;
             case State.deleting:
+                _observer.disconnect();
                 closeWindow();
                 break;
             default:
