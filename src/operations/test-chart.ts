@@ -18,7 +18,7 @@ export default function(e: {
         log.log("Closing window ...");
         window.close();
     }
-    const enum State { init, submitted, deleting }
+    const enum State { init, submitted, deleteClicked, deleteConfirmed }
     let state = State.init;
     const observer = new MutationObserver((_mutations, _observer) => {
         switch (state) {
@@ -42,20 +42,8 @@ export default function(e: {
                     const deleteButton = document.querySelector(".AppControls button.button-danger");
                     if (deleteButton instanceof HTMLElement) {
                         log.log("Deleting release ...");
+                        state = State.deleteClicked;
                         click(deleteButton);
-                        setTimeout(() => {
-                            const confirmDeleteButton = document.querySelector(".ReactModal__Content button[type=submit]");
-                            const purgeCheckbox = document.querySelector(".ReactModal__Content input[type=checkbox]");
-                            if (confirmDeleteButton instanceof HTMLElement && purgeCheckbox instanceof HTMLInputElement) {
-                                log.log("Confirming delete ...");
-                                state = State.deleting;
-                                pretendToClick(purgeCheckbox);
-                                purgeCheckbox.checked = true;
-                                click(confirmDeleteButton);
-                            } else {
-                                log.error("Tried to delete release, but could not find confirm button and/or purge checkbox.");
-                            }
-                        }, CONFIG.clickDelay);
                     } else {
                         log.error("Could not find delete button.");
                     }
@@ -66,7 +54,22 @@ export default function(e: {
                     }
                 }
                 break;
-            case State.deleting:
+            case State.deleteClicked:
+                setTimeout(() => {
+                    const confirmDeleteButton = document.querySelector(".ReactModal__Content button[type=submit]");
+                    const purgeCheckbox = document.querySelector(".ReactModal__Content input[type=checkbox]");
+                    if (confirmDeleteButton instanceof HTMLElement && purgeCheckbox instanceof HTMLInputElement) {
+                        log.log("Confirming delete ...");
+                        state = State.deleteConfirmed;
+                        pretendToClick(purgeCheckbox);
+                        purgeCheckbox.checked = true;
+                        click(confirmDeleteButton);
+                    } else {
+                        log.error("Tried to delete release, but could not find confirm button and/or purge checkbox.");
+                    }
+                }, CONFIG.clickDelay);
+                break;
+            case State.deleteConfirmed:
                 _observer.disconnect();
                 closeWindow();
                 break;
