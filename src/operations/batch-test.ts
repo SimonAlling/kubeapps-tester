@@ -1,3 +1,4 @@
+import * as Storage from "ts-storage";
 import { log } from "userscripter";
 
 import * as CONFIG from "~src/config";
@@ -24,6 +25,10 @@ export default function(e: {
         }
         const cards = Array.from(document.querySelectorAll(SELECTOR.chartCard)).slice(0, n) as HTMLElement[];
         if (cards.length > 0) {
+            // Start a new localStorage log:
+            const localStorageKey = CONFIG.newLocalStorageLoggingKey(new Date());
+            Storage.set_session(CONFIG.LOG_KEY_KEY, localStorageKey);
+            Storage.set(localStorageKey, []);
             batchTest(cards);
         } else {
             log.error("No charts found.");
@@ -36,7 +41,11 @@ export default function(e: {
 function batchTest(cards: readonly HTMLElement[]) {
     function testChart(index: number) {
         const card = cards[index];
-        if (card === undefined) return; // no more charts to test
+        if (card === undefined) { // no more charts to test
+            log.log("Batch test finished!");
+            sessionStorage.clear();
+            return;
+        }
         const link = card.querySelector<HTMLAnchorElement>(SELECTOR.chartCardLink);
         if (link === null) {
             log.error("Could not find chart link.");
