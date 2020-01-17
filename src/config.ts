@@ -2,8 +2,8 @@
 
 import U from "./userscript";
 
-export const OPERATIONS_INTERVAL = 200; // ms
-export const OPERATIONS_EXTRA_TRIES = 30;
+export const OPERATIONS_INTERVAL = 500; // ms
+export const OPERATIONS_EXTRA_TRIES = 60_000 / OPERATIONS_INTERVAL; // If it takes longer, Kubeapps is probably rekt.
 
 export const LOG_KEY_KEY = U.id + "-log-key";
 
