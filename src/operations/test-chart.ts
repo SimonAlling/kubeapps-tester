@@ -18,6 +18,10 @@ export default function(e: {
         log.log("Closing window ...");
         window.close();
     }
+    const deployButtonTimeout = setTimeout(() => {
+        log.error(`Deploy button did not show up within ${CONFIG.findDeployButtonTimeoutInSeconds} seconds.`);
+        closeWindow();
+    }, CONFIG.findDeployButtonTimeoutInSeconds * 1000);
     const enum State { init, submitted, deleteClicked, deleteConfirmed }
     let state = State.init;
     const observer = new MutationObserver((_mutations, _observer) => {
@@ -27,6 +31,7 @@ export default function(e: {
                 log.log("Looking for submit button ...");
                 const submitButton = document.querySelector("button[type=submit]");
                 if (submitButton instanceof HTMLButtonElement) {
+                    clearTimeout(deployButtonTimeout);
                     log.log("Submitting ...");
                     setTimeout(timeout, CONFIG.releaseReadyTimeoutInSeconds * 1000);
                     state = State.submitted;
