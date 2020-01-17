@@ -19,6 +19,7 @@ export default function() {
     let findSubmitButtonTimer: number;
     let findReadyStatusTimer: number;
     let deleteReleaseTimer: number;
+    log.log("******** Chart test initiated! ********");
     log.log("Looking for deploy button ...");
     const enum State { init, deploying, submitted, deleteClicked, deleteConfirmed }
     let state = State.init;
