@@ -21,7 +21,7 @@ function logToLocalStorageWithLabel(label: string) {
         switch (response_key.status) {
             case Storage.Status.OK:
                 const localStorageKey = response_key.value;
-                const msg = `[${new Date().toISOString()}] ${label}: ${xs.join(" ")}`;
+                const msg = `[${new Date().toISOString()}] ${label}: ${xs.join(" ").trim()}`;
                 const response_log = Storage.get<string[]>(localStorageKey, []);
                 switch (response_log.status) {
                     case Storage.Status.OK:

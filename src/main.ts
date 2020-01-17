@@ -16,7 +16,10 @@ const describeFailure = errors.failureDescriber({
 userscripter.run({
     id: U.id,
     name: U.name,
-    initialAction: () => log.log(`${U.name} ${U.version}`),
+    initialAction: () => {
+        log.setPrefix("");
+        log.log(`${U.name} ${U.version}`);
+    },
     stylesheets: STYLESHEETS,
     operationsPlan: {
         operations: OPERATIONS,
