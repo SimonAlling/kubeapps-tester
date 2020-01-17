@@ -1,52 +1,67 @@
 import { log } from "userscripter";
 
 import * as CONFIG from "~src/config";
-import { click } from "~src/general/click";
+import { click, pretendToClick } from "~src/general/click";
 import * as SITE from "~src/site";
-import { pretendToClick } from "../general/click";
 
-export default function(e: {
-    [K in "deployButton" | "heading"]: HTMLElement
-}) {
-    const name = e.heading.textContent;
-    log.log(`Testing chart '${name}' ...`);
-    function timeout() {
-        log.error(`${name} did not become ready within ${CONFIG.releaseReadyTimeoutInSeconds} seconds.`);
-        closeWindow();
+export default function() {
+    function timeout(message: string): () => void {
+        return () => {
+            log.error(message);
+            closeWindow();
+        };
     }
     function closeWindow() {
         log.log("Closing window ...");
         window.close();
     }
-    const deployButtonTimeout = setTimeout(() => {
-        log.error(`Deploy button did not show up within ${CONFIG.findDeployButtonTimeoutInSeconds} seconds.`);
-        closeWindow();
-    }, CONFIG.findDeployButtonTimeoutInSeconds * 1000);
-    const enum State { init, submitted, deleteClicked, deleteConfirmed }
+    const deployButtonTimeout = timeout(`Deploy button did not show up within ${CONFIG.findDeployButtonTimeoutInSeconds} seconds.`);
+    const submitButtonTimeout = timeout(`Submit button did not show up within ${CONFIG.findSubmitButtonTimeoutInSeconds} seconds.`);
+    const releaseReadyTimeout = timeout(`Release did not become ready within ${CONFIG.releaseReadyTimeoutInSeconds} seconds.`);
+    const deleteReleaseTimeout = timeout(`Release was not deleted within ${CONFIG.deleteReleaseTimeoutInSeconds} seconds.`);
+    let findDeployButtonTimer = setTimeout(deployButtonTimeout, CONFIG.findDeployButtonTimeoutInSeconds * 1000);
+    let findSubmitButtonTimer: number;
+    let findReadyStatusTimer: number;
+    let deleteReleaseTimer: number;
+    log.log("Looking for deploy button ...");
+    const enum State { init, deploying, submitted, deleteClicked, deleteConfirmed }
     let state = State.init;
     const observer = new MutationObserver((_mutations, _observer) => {
         switch (state) {
             case State.init:
-                // Look for submit button.
+                const heading = document.querySelector(".ChartView__heading h1");
+                const deployButton = document.querySelector(".ChartDeployButton button");
+                if (heading instanceof HTMLElement && deployButton instanceof HTMLElement) {
+                    clearTimeout(findDeployButtonTimer);
+                    log.log(`Testing chart '${heading.textContent}' ...`);
+                    findSubmitButtonTimer = setTimeout(submitButtonTimeout, CONFIG.findSubmitButtonTimeoutInSeconds * 1000);
+                    state = State.deploying;
+                    click(deployButton);
+                }
+                break;
+            case State.deploying:
                 log.log("Looking for submit button ...");
                 const submitButton = document.querySelector("button[type=submit]");
                 if (submitButton instanceof HTMLButtonElement) {
-                    clearTimeout(deployButtonTimeout);
+                    clearTimeout(findSubmitButtonTimer);
                     log.log("Submitting ...");
-                    setTimeout(timeout, CONFIG.releaseReadyTimeoutInSeconds * 1000);
+                    findReadyStatusTimer = setTimeout(releaseReadyTimeout, CONFIG.releaseReadyTimeoutInSeconds * 1000);
                     state = State.submitted;
                     click(submitButton);
+                    log.log("Waiting for release to become ready ...");
                 }
                 break;
             case State.submitted:
                 // Look for "READY" status.
                 const statusElement = document.querySelector(".ApplicationStatus");
                 if (statusElement instanceof HTMLElement && statusElement.classList.contains(SITE.CLASS.releaseReady)) {
+                    clearTimeout(findReadyStatusTimer);
                     log.log("Release is ready!");
                     log.log("Looking for delete button ...");
                     const deleteButton = document.querySelector(".AppControls button.button-danger");
                     if (deleteButton instanceof HTMLElement) {
                         log.log("Deleting release ...");
+                        deleteReleaseTimer = setTimeout(deleteReleaseTimeout, CONFIG.deleteReleaseTimeoutInSeconds * 1000);
                         state = State.deleteClicked;
                         click(deleteButton);
                     } else {
@@ -84,5 +99,4 @@ export default function(e: {
         }
     });
     observer.observe(document.documentElement, { childList: true, subtree: true });
-    click(e.deployButton);
 }

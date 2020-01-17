@@ -29,10 +29,6 @@ const OPERATIONS: ReadonlyArray<Operation<any>> = [
     operation({
         description: "test chart",
         condition: isOnChartPage,
-        dependencies: {
-            deployButton: ".ChartDeployButton button",
-            heading: ".ChartView__heading h1",
-        },
         action: testChart,
     }),
 ];
