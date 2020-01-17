@@ -101,7 +101,7 @@ function closeWindow() {
 function abortIfKubeappsError() {
     const errorText = document.querySelector(".alert-error .error__text");
     if (errorText instanceof HTMLElement) {
-        log.error(errorText.textContent || "An error seems to have occurred, but could not find the message.");
+        log.error("Internal Kubeapps error: " + (errorText.textContent || "(could not extract Kubeapps error message)"));
         closeWindow();
     }
 }
