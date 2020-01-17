@@ -56,6 +56,7 @@ export default function(e: {
                     const errorText = document.querySelector(".alert-error .error__text");
                     if (errorText instanceof HTMLElement) {
                         log.error(errorText.textContent || "An error seems to have occurred, but could not find the message.");
+                        setTimeout(closeWindow, CONFIG.clickDelay);
                     }
                 }
                 break;
