@@ -11,10 +11,6 @@ export default function() {
             closeWindow();
         };
     }
-    function closeWindow() {
-        log.log("Closing window ...");
-        window.close();
-    }
     const deployButtonTimeout = timeout(`Deploy button did not show up within ${CONFIG.findDeployButtonTimeoutInSeconds} seconds.`);
     const submitButtonTimeout = timeout(`Submit button did not show up within ${CONFIG.findSubmitButtonTimeoutInSeconds} seconds.`);
     const releaseReadyTimeout = timeout(`Release did not become ready within ${CONFIG.releaseReadyTimeoutInSeconds} seconds.`);
@@ -27,6 +23,7 @@ export default function() {
     const enum State { init, deploying, submitted, deleteClicked, deleteConfirmed }
     let state = State.init;
     const observer = new MutationObserver((_mutations, _observer) => {
+        abortIfKubeappsError();
         switch (state) {
             case State.init:
                 const heading = document.querySelector(".ChartView__heading h1");
@@ -67,12 +64,6 @@ export default function() {
                     } else {
                         log.error("Could not find delete button.");
                     }
-                } else {
-                    const errorText = document.querySelector(".alert-error .error__text");
-                    if (errorText instanceof HTMLElement) {
-                        log.error(errorText.textContent || "An error seems to have occurred, but could not find the message.");
-                        setTimeout(closeWindow, CONFIG.clickDelay);
-                    }
                 }
                 break;
             case State.deleteClicked:
@@ -99,4 +90,17 @@ export default function() {
         }
     });
     observer.observe(document.documentElement, { childList: true, subtree: true });
+}
+
+function closeWindow() {
+    log.log("Closing window ...");
+    window.close();
+}
+
+function abortIfKubeappsError() {
+    const errorText = document.querySelector(".alert-error .error__text");
+    if (errorText instanceof HTMLElement) {
+        log.error(errorText.textContent || "An error seems to have occurred, but could not find the message.");
+        closeWindow();
+    }
 }
