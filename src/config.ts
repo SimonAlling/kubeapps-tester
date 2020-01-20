@@ -10,7 +10,7 @@ export const LOG_KEY_KEY = U.id + "-log-key";
 export const findDeployButtonTimeoutInSeconds = 60;
 export const findSubmitButtonTimeoutInSeconds = 60;
 export const releaseReadyTimeoutInSeconds = 60;
-export const deleteReleaseTimeoutInSeconds = 60;
+export const confirmDeleteButtonTimeoutInSeconds = 10;
 
 export const clickDelay = 500; // ms; to emulate a human user
 

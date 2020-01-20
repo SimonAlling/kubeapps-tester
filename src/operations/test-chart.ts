@@ -14,11 +14,11 @@ export default function() {
     const deployButtonTimeout = timeout(`Deploy button did not show up within ${CONFIG.findDeployButtonTimeoutInSeconds} seconds.`);
     const submitButtonTimeout = timeout(`Submit button did not show up within ${CONFIG.findSubmitButtonTimeoutInSeconds} seconds.`);
     const releaseReadyTimeout = timeout(`Release did not become ready within ${CONFIG.releaseReadyTimeoutInSeconds} seconds.`);
-    const deleteReleaseTimeout = timeout(`Release was not deleted within ${CONFIG.deleteReleaseTimeoutInSeconds} seconds.`);
+    const confirmDeleteButtonTimeout = timeout(`Tried to delete release, but could not find confirm button and/or purge checkbox within ${CONFIG.confirmDeleteButtonTimeoutInSeconds}.`);
     let findDeployButtonTimer = setTimeout(deployButtonTimeout, CONFIG.findDeployButtonTimeoutInSeconds * 1000);
     let findSubmitButtonTimer: number;
     let findReadyStatusTimer: number;
-    let deleteReleaseTimer: number;
+    let confirmDeleteButtonTimer: number;
     log.log("******** Chart test initiated! ********");
     log.log("Looking for deploy button ...");
     const enum State { init, deploying, submitted, deleteClicked, deleteConfirmed }
@@ -59,7 +59,7 @@ export default function() {
                     const deleteButton = document.querySelector(".AppControls button.button-danger");
                     if (deleteButton instanceof HTMLElement) {
                         log.log("Deleting release ...");
-                        deleteReleaseTimer = setTimeout(deleteReleaseTimeout, CONFIG.deleteReleaseTimeoutInSeconds * 1000);
+                        confirmDeleteButtonTimer = setTimeout(confirmDeleteButtonTimeout, CONFIG.confirmDeleteButtonTimeoutInSeconds * 1000);
                         state = State.deleteClicked;
                         click(deleteButton);
                     } else {
@@ -68,19 +68,16 @@ export default function() {
                 }
                 break;
             case State.deleteClicked:
-                setTimeout(() => {
-                    const confirmDeleteButton = document.querySelector(".ReactModal__Content button[type=submit]");
-                    const purgeCheckbox = document.querySelector(".ReactModal__Content input[type=checkbox]");
-                    if (confirmDeleteButton instanceof HTMLElement && purgeCheckbox instanceof HTMLInputElement) {
-                        log.log("Confirming delete ...");
-                        state = State.deleteConfirmed;
-                        pretendToClick(purgeCheckbox);
-                        purgeCheckbox.checked = true;
-                        click(confirmDeleteButton);
-                    } else {
-                        log.error("Tried to delete release, but could not find confirm button and/or purge checkbox.");
-                    }
-                }, CONFIG.clickDelay);
+                const confirmDeleteButton = document.querySelector(".ReactModal__Content button[type=submit]");
+                const purgeCheckbox = document.querySelector(".ReactModal__Content input[type=checkbox]");
+                if (confirmDeleteButton instanceof HTMLElement && purgeCheckbox instanceof HTMLInputElement) {
+                    clearTimeout(confirmDeleteButtonTimer);
+                    log.log("Confirming delete ...");
+                    state = State.deleteConfirmed;
+                    pretendToClick(purgeCheckbox);
+                    purgeCheckbox.checked = true;
+                    click(confirmDeleteButton);
+                }
                 break;
             case State.deleteConfirmed:
                 _observer.disconnect();
