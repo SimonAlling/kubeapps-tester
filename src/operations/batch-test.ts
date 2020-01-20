@@ -59,7 +59,7 @@ function batchTest(cards: readonly HTMLElement[], localStorageKey: string, heade
                 updateLog(logTextarea, localStorageKey);
                 if (chartWindow?.closed) {
                     clearInterval(pollTimer);
-                    testChart(index + 1);
+                    setTimeout(() => testChart(index + 1), CONFIG.clickDelay);
                 }
             }, CONFIG.clickDelay);
         }, CONFIG.clickDelay);
