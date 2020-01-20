@@ -1,93 +1,16 @@
-import { log } from "userscripter";
+import { log, operations } from "userscripter";
 
 import * as CONFIG from "~src/config";
+import SELECTOR from "~src/selectors";
 import { click, pretendToClick } from "~src/general/click";
-import * as SITE from "~src/site";
+import { environment } from "userscripter";
+
+const TICKER_INTERVAL = 500; // ms
 
 export default function() {
-    function timeout(message: string): () => void {
-        return () => {
-            log.error(message);
-            closeWindow();
-        };
-    }
-    const deployButtonTimeout = timeout(`Deploy button did not show up within ${CONFIG.findDeployButtonTimeoutInSeconds} seconds.`);
-    const submitButtonTimeout = timeout(`Submit button did not show up within ${CONFIG.findSubmitButtonTimeoutInSeconds} seconds.`);
-    const releaseReadyTimeout = timeout(`Release did not become ready within ${CONFIG.releaseReadyTimeoutInSeconds} seconds.`);
-    const confirmDeleteButtonTimeout = timeout(`Tried to delete release, but could not find confirm button and/or purge checkbox within ${CONFIG.confirmDeleteButtonTimeoutInSeconds}.`);
-    let findDeployButtonTimer = setTimeout(deployButtonTimeout, CONFIG.findDeployButtonTimeoutInSeconds * 1000);
-    let findSubmitButtonTimer: number;
-    let findReadyStatusTimer: number;
-    let confirmDeleteButtonTimer: number;
     log.log("******** Chart test initiated! ********");
     log.log("Looking for deploy button ...");
-    const enum State { init, deploying, submitted, deleteClicked, deleteConfirmed }
-    let state = State.init;
-    const observer = new MutationObserver((_mutations, _observer) => {
-        abortIfKubeappsError();
-        switch (state) {
-            case State.init:
-                const heading = document.querySelector(".ChartView__heading h1");
-                const deployButton = document.querySelector(".ChartDeployButton button");
-                if (heading instanceof HTMLElement && deployButton instanceof HTMLElement) {
-                    clearTimeout(findDeployButtonTimer);
-                    log.log(`Testing chart '${heading.textContent}' ...`);
-                    findSubmitButtonTimer = setTimeout(submitButtonTimeout, CONFIG.findSubmitButtonTimeoutInSeconds * 1000);
-                    state = State.deploying;
-                    click(deployButton);
-                }
-                break;
-            case State.deploying:
-                log.log("Looking for submit button ...");
-                const submitButton = document.querySelector("button[type=submit]");
-                if (submitButton instanceof HTMLButtonElement) {
-                    clearTimeout(findSubmitButtonTimer);
-                    log.log("Submitting ...");
-                    findReadyStatusTimer = setTimeout(releaseReadyTimeout, CONFIG.releaseReadyTimeoutInSeconds * 1000);
-                    state = State.submitted;
-                    click(submitButton);
-                    log.log("Waiting for release to become ready ...");
-                }
-                break;
-            case State.submitted:
-                // Look for "READY" status.
-                const statusElement = document.querySelector(".ApplicationStatus");
-                if (statusElement instanceof HTMLElement && statusElement.classList.contains(SITE.CLASS.releaseReady)) {
-                    clearTimeout(findReadyStatusTimer);
-                    log.log("Release is ready!");
-                    log.log("Looking for delete button ...");
-                    const deleteButton = document.querySelector(".AppControls button.button-danger");
-                    if (deleteButton instanceof HTMLElement) {
-                        log.log("Deleting release ...");
-                        confirmDeleteButtonTimer = setTimeout(confirmDeleteButtonTimeout, CONFIG.confirmDeleteButtonTimeoutInSeconds * 1000);
-                        state = State.deleteClicked;
-                        click(deleteButton);
-                    } else {
-                        log.error("Could not find delete button.");
-                    }
-                }
-                break;
-            case State.deleteClicked:
-                const confirmDeleteButton = document.querySelector(".ReactModal__Content button[type=submit]");
-                const purgeCheckbox = document.querySelector(".ReactModal__Content input[type=checkbox]");
-                if (confirmDeleteButton instanceof HTMLElement && purgeCheckbox instanceof HTMLInputElement) {
-                    clearTimeout(confirmDeleteButtonTimer);
-                    log.log("Confirming delete ...");
-                    state = State.deleteConfirmed;
-                    pretendToClick(purgeCheckbox);
-                    purgeCheckbox.checked = true;
-                    click(confirmDeleteButton);
-                }
-                break;
-            case State.deleteConfirmed:
-                _observer.disconnect();
-                closeWindow();
-                break;
-            default:
-                const _: never = state; void _; // enforces switch exhaustiveness
-        }
-    });
-    observer.observe(document.documentElement, { childList: true, subtree: true });
+    runOperation(CLICK_DEPLOY);
 }
 
 function closeWindow() {
@@ -95,10 +18,184 @@ function closeWindow() {
     window.close();
 }
 
-function abortIfKubeappsError() {
-    const errorText = document.querySelector(".alert-error .error__text");
-    if (errorText instanceof HTMLElement) {
-        log.error("Internal Kubeapps error: " + (errorText.textContent || "(could not extract Kubeapps error message)"));
-        closeWindow();
-    }
+type ChainedOperation<K extends string> = Readonly<{
+    operation: operations.Operation<K>
+    delay: number
+    timeout: number
+    onSuccess?: ChainedOperation<any>
+    onFailure?: ChainedOperation<any>
+}>;
+
+
+// Order reversed because they reference each other:
+
+const CLOSE_WINDOW = {
+    operation: operations.operation({
+        description: "",
+        condition: environment.ALWAYS,
+        action: closeWindow,
+    }),
+    delay: CONFIG.clickDelay,
+    timeout: 5_000,
+} as const;
+
+const EXPECT_DELETED = {
+    operation: operations.operation({
+        description: `Release may not have been deleted successfully within ${CONFIG.expectDeletedTimeoutInSeconds} seconds.`,
+        condition: environment.ALWAYS,
+        action: _ => {
+            log.log("Release successfully deleted!");
+        },
+        dependencies: {
+            appList: "section.AppList",
+        },
+    }),
+    delay: CONFIG.clickDelay,
+    timeout: CONFIG.expectDeletedTimeoutInSeconds * 1000,
+    onSuccess: CLOSE_WINDOW,
+    onFailure: CLOSE_WINDOW,
+} as const;
+
+const CONFIRM_DELETE = {
+    operation: operations.operation({
+        description: `Tried to uninstall release, but could not find confirm button and/or purge checkbox within ${CONFIG.confirmDeleteButtonTimeoutInSeconds}.`,
+        condition: environment.ALWAYS,
+        action: e => {
+            const purgeCheckbox = e.purgeCheckbox as HTMLInputElement;
+            pretendToClick(purgeCheckbox);
+            purgeCheckbox.checked = true;
+            click(e.confirmDeleteButton);
+        },
+        dependencies: {
+            purgeCheckbox: ".ReactModal__Content input[type=checkbox]",
+            confirmDeleteButton: ".ReactModal__Content button.button-danger",
+        },
+    }),
+    delay: CONFIG.clickDelay,
+    timeout: CONFIG.confirmDeleteButtonTimeoutInSeconds * 1000,
+    onSuccess: EXPECT_DELETED,
+    onFailure: CLOSE_WINDOW,
+} as const;
+
+const CLICK_DELETE = {
+    operation: operations.operation({
+        description: `Tried to uninstall release, but could not find delete button within ${CONFIG.deleteButtonTimeoutInSeconds}.`,
+        condition: environment.ALWAYS,
+        action: e => {
+            click(e.deleteButton);
+        },
+        dependencies: {
+            deleteButton: ".AppControls button.button-danger",
+        },
+    }),
+    delay: CONFIG.clickDelay,
+    timeout: CONFIG.deleteButtonTimeoutInSeconds * 1000,
+    onSuccess: CONFIRM_DELETE,
+    onFailure: CLOSE_WINDOW,
+} as const;
+
+const OBSERVE_READY = {
+    operation: operations.operation({
+        description: `Release did not become ready within ${CONFIG.releaseReadyTimeoutInSeconds} seconds.`,
+        condition: environment.ALWAYS,
+        action: _ => {
+            log.log("Release is ready! Uninstalling it ...");
+        },
+        dependencies: {
+            readyIndicator: ".ApplicationStatus.ApplicationStatus--success",
+        },
+    }),
+    delay: 0,
+    timeout: CONFIG.releaseReadyTimeoutInSeconds * 1000,
+    onSuccess: CLICK_DELETE,
+    onFailure: CLICK_DELETE, // so as not to leave installed releases
+} as const;
+
+const DETECT_RELEASE = {
+    operation: operations.operation({
+        description: `Release did not show up within ${CONFIG.releaseShowUpTimeoutInSeconds} seconds.`,
+        condition: environment.ALWAYS,
+        action: _ => {
+            log.log("Waiting for release to become ready ...");
+        },
+        dependencies: {
+            appView: ".AppView",
+        },
+    }),
+    delay: 0,
+    timeout: CONFIG.releaseShowUpTimeoutInSeconds * 1000,
+    onSuccess: OBSERVE_READY,
+    onFailure: CLOSE_WINDOW,
+} as const;
+
+const CLICK_SUBMIT = {
+    operation: operations.operation({
+        description: `Could not find submit button within ${CONFIG.findSubmitButtonTimeoutInSeconds} seconds.`,
+        condition: environment.ALWAYS,
+        action: e => {
+            click(e.submitButton);
+            log.log("Waiting for release to show up ...");
+        },
+        dependencies: {
+            submitButton: "button[type=submit]",
+        },
+    }),
+    delay: CONFIG.clickDelay,
+    timeout: 60_000,
+    onSuccess: DETECT_RELEASE,
+    onFailure: CLOSE_WINDOW,
+} as const;
+
+const CLICK_DEPLOY = {
+    operation: operations.operation({
+        description: `Could not find deploy button within ${CONFIG.findDeployButtonTimeoutInSeconds} seconds.`,
+        condition: environment.ALWAYS,
+        action: e => {
+            log.log(`Testing chart '${e.heading.textContent}' ...`);
+            click(e.deployButton);
+            log.log("Looking for submit button ...");
+        },
+        dependencies: {
+            deployButton: ".ChartDeployButton button",
+            heading: ".ChartView__heading h1",
+        },
+    }),
+    delay: CONFIG.clickDelay,
+    timeout: 60_000,
+    onSuccess: CLICK_SUBMIT,
+    onFailure: CLOSE_WINDOW,
+} as const;
+
+function runOperation<K extends string>(operation: ChainedOperation<K>): void {
+    const o = operation.operation;
+    const timeoutTimer = setTimeout(() => {
+        log.error(o.description);
+        if (operation.onFailure) runOperation(operation.onFailure);
+    }, operation.timeout);
+    const ticker = setInterval(() => {
+        const kubeappsErrorMessage = document.querySelector(SELECTOR.kubeappsErrorMessage);
+        if (kubeappsErrorMessage instanceof HTMLElement) {
+            clearInterval(ticker);
+            clearTimeout(timeoutTimer);
+            log.error("Internal Kubeapps error: " + (kubeappsErrorMessage.textContent || "(could not extract Kubeapps error message)"));
+            setTimeout(closeWindow, CONFIG.clickDelay);
+        }
+        const dependencies = o.dependencies === undefined ? {} as { [k in K]: string } : o.dependencies;
+        const queryResults = Object.entries<string>(dependencies).map(([key, selector]) => ({
+            key, selector, element: document.querySelector<HTMLElement>(selector),
+        }));
+        const missingDependencies = queryResults.filter(x => x.element === null);
+        if (missingDependencies.length === 0) {
+            clearInterval(ticker);
+            clearTimeout(timeoutTimer);
+            const e = queryResults.reduce(
+                (acc, x) => Object.defineProperty(acc, x.key, { value: x.element }),
+                {} as { [k in K]: HTMLElement },
+            );
+            setTimeout(() => {
+                o.action(e);
+                if (operation.onSuccess) runOperation(operation.onSuccess);
+            }, operation.delay);
+        }
+    }, TICKER_INTERVAL);
 }
