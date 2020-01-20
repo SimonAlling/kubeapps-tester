@@ -26,7 +26,7 @@ export default function(e: {
             const localStorageKey = CONFIG.newLocalStorageLoggingKey(new Date());
             Storage.set_session(CONFIG.LOG_KEY_KEY, localStorageKey);
             Storage.set(localStorageKey, []);
-            batchTest(cards);
+            batchTest(cards, localStorageKey, e.headerDiv);
         } else {
             log.error("No charts found.");
         }
@@ -35,11 +35,15 @@ export default function(e: {
 }
 
 // Assumes cards to be non-empty.
-function batchTest(cards: readonly HTMLElement[]) {
+function batchTest(cards: readonly HTMLElement[], localStorageKey: string, headerDiv: HTMLElement) {
+    const logTextarea = document.createElement("textarea");
+    logTextarea.classList.add(CONFIG.CLASS.batchTestLog);
+    headerDiv.insertAdjacentElement("afterend", logTextarea);
     function testChart(index: number) {
         const card = cards[index];
         if (card === undefined) { // no more charts to test
             log.log("Batch test finished!");
+            updateLog(logTextarea, localStorageKey);
             sessionStorage.clear();
             return;
         }
@@ -52,6 +56,7 @@ function batchTest(cards: readonly HTMLElement[]) {
         setTimeout(() => {
             const chartWindow = window.open(link.href);
             const pollTimer = setInterval(() => {
+                updateLog(logTextarea, localStorageKey);
                 if (chartWindow?.closed) {
                     clearInterval(pollTimer);
                     testChart(index + 1);
@@ -60,4 +65,17 @@ function batchTest(cards: readonly HTMLElement[]) {
         }, CONFIG.clickDelay);
     }
     testChart(0);
+}
+
+function updateLog(textarea: HTMLTextAreaElement, localStorageKey: string) {
+    const response = Storage.get<string[]>(localStorageKey, []);
+    switch (response.status) {
+        case Storage.Status.OK:
+            const stringifiedLog = response.value.join("\n");
+            textarea.value = stringifiedLog;
+            textarea.scrollTo({ top: Number.MAX_SAFE_INTEGER }); // to bottom
+            break;
+        default:
+            textarea.value = `Could not read log from localStorage.`;
+    }
 }

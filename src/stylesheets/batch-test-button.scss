@@ -2,3 +2,8 @@
     width: auto;
     margin-left: 1em;
 }
+
+.#{getGlobal("CONFIG.CLASS.batchTestLog")} {
+    height: 300px;
+    font-family: monospace;
+}

@@ -18,6 +18,7 @@ const c = (s: string) => U.id + "-" + s;
 
 export const CLASS = {
     batchTestButton: c("batch-test-button"),
+    batchTestLog: c("batch-test-log"),
     click: c("click"),
 } as const;
 
