@@ -48,7 +48,7 @@ function batchTest(cards: readonly HTMLElement[], localStorageKey: string, heade
             sessionStorage.clear();
             return;
         }
-        log.log(`Testing chart ${index+1} of ${numberOfCharts} ...`);
+        log.log(`******** Testing chart ${index+1} of ${numberOfCharts} ... ********`);
         const link = card.querySelector<HTMLAnchorElement>(SELECTOR.chartCardLink);
         if (link === null) {
             log.error("Could not find chart link.");

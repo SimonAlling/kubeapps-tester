@@ -8,7 +8,6 @@ import { environment } from "userscripter";
 const TICKER_INTERVAL = 500; // ms
 
 export default function() {
-    log.log("******** Chart test initiated! ********");
     log.log("Looking for deploy button ...");
     runOperation(CLICK_DEPLOY);
 }
