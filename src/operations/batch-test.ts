@@ -73,7 +73,7 @@ function updateLog(textarea: HTMLTextAreaElement, localStorageKey: string) {
         case Storage.Status.OK:
             const stringifiedLog = response.value.join("\n");
             textarea.value = stringifiedLog;
-            textarea.scrollTo({ top: Number.MAX_SAFE_INTEGER }); // to bottom
+            textarea.scrollTo({ top: textarea.scrollHeight }); // to bottom
             break;
         default:
             textarea.value = `Could not read log from localStorage.`;
