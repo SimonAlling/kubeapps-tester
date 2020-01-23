@@ -39,6 +39,7 @@ function batchTest(cards: readonly HTMLElement[], localStorageKey: string, heade
     const logTextarea = document.createElement("textarea");
     logTextarea.classList.add(CONFIG.CLASS.batchTestLog);
     headerDiv.insertAdjacentElement("afterend", logTextarea);
+    const numberOfCharts = cards.length;
     function testChart(index: number) {
         const card = cards[index];
         if (card === undefined) { // no more charts to test
@@ -47,6 +48,7 @@ function batchTest(cards: readonly HTMLElement[], localStorageKey: string, heade
             sessionStorage.clear();
             return;
         }
+        log.log(`Testing chart ${index+1} of ${numberOfCharts} ...`);
         const link = card.querySelector<HTMLAnchorElement>(SELECTOR.chartCardLink);
         if (link === null) {
             log.error("Could not find chart link.");
